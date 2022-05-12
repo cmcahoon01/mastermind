@@ -13,8 +13,10 @@ class Game:
         return score
 
     def score_guess(self, guess):
+        assert len(guess) == len(self.answer), f"Guess should be length {len(self.answer)}, not {len(guess)}."
         blacks = 0  # correct color and position
         whites = 0  # correct color wrong position
+        guess = guess.copy()
         answer = self.answer.copy()
         for i in range(len(guess)):
             if guess[i] == answer[i]:

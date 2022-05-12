@@ -1,5 +1,6 @@
 from game import Game
 from math import log2
+from numpy import argmax
 
 
 def score_guess(guess, answer):
@@ -12,10 +13,11 @@ def is_possible(answer, guess, black, white):
 
 
 class Solver:
-    def __init__(self, game, colors, size=4):
+    def __init__(self, game, colors, size=4, forced_guess=False):
         self.colors = colors
         self.game = game
         self.size = size
+        self.forced_guess = forced_guess
         self.all_combinations = self.generate_all_combinations(size)
         self.remaining_combinations = self.all_combinations.copy()
 
@@ -31,13 +33,18 @@ class Solver:
         return all_combinations
 
     def guess(self):
-        expected_info = {}
-        for combination in self.all_combinations:
-            expected_info[combination] = self.get_expected_info(combination)
-        max_expected_info = max(expected_info.values())
-        for combination in self.all_combinations:
-            if expected_info[combination] == max_expected_info:
-                return self.receive_feedback(combination)
+        if self.forced_guess:
+            self.forced_guess = False
+            combination = self.colors[:self.size]
+        elif len(self.remaining_combinations) == 1:
+            combination = self.remaining_combinations[0]
+        else:
+            expected_info = []
+            for combination in self.all_combinations:
+                expected_info.append(self.get_expected_info(combination))
+            max_expected_info = argmax(expected_info)
+            combination = self.all_combinations[max_expected_info]
+        return combination, self.receive_feedback(combination)
 
     def get_expected_info(self, combination):
         results = {}
@@ -49,11 +56,13 @@ class Solver:
         expected_value = 0
         num_remaining = len(self.remaining_combinations)
         for occurrences in results.values():
-            probability = occurrences / num_remaining
-            expected_value += probability * log2(1 / probability)
+            if occurrences > 0:
+                probability = occurrences / num_remaining
+                expected_value += probability * log2(1 / probability)
         return expected_value
 
     def receive_feedback(self, combination):
         black, white = self.game.guess(combination)
-        self.remaining_combinations = filter(lambda x: is_possible(x, combination, black, white),
-                                             self.remaining_combinations)
+        self.remaining_combinations = list(filter(lambda x: is_possible(x, combination, black, white),
+                                             self.remaining_combinations))
+        return black, white
